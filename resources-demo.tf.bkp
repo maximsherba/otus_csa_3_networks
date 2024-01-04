@@ -1,0 +1,64 @@
+#Vars
+variable "vpc_count" {
+  type    = number
+  default = 3
+}
+
+variable "cidrs" {
+ type        = list(string)
+ description = "CIDR values"
+ default     = ["10.0.1.0/26", "10.0.2.0/26", "10.0.3.0/26"]
+}
+
+variable "azs" {
+ type        = list(string)
+ description = "Availability Zones"
+ default     = ["eu-west-3a", "eu-west-3b", "eu-west-3c"]
+}
+
+#VPC 
+resource "aws_vpc" "vpc" {
+  count = var.vpc_count
+  tags = {
+    Name = "vpc${count.index + 1}"
+  }
+  cidr_block = element(var.cidrs, count.index)
+}
+
+#Subnets
+resource "aws_subnet" "subnet" {
+  count = var.vpc_count
+  tags = {
+    Name = "subnet${count.index + 1}"
+  }
+  vpc_id     = element(aws_vpc.vpc[*].id, count.index)
+  cidr_block = element(var.cidrs, count.index) 
+  availability_zone = element(var.azs, count.index)
+}
+
+#Gateways
+resource "aws_internet_gateway" "gw3" {
+  tags = {
+    Name = "gw3"
+  }
+  vpc_id = aws_vpc.vpc[2].id
+}
+
+#VPC peering
+resource "aws_vpc_peering_connection" "peering_vpc3_vpc1" {
+  tags = {
+    Name = "peering_vpc3_vpc1"
+  }
+  vpc_id      = aws_vpc.vpc[2].id
+  peer_vpc_id = aws_vpc.vpc[0].id
+  auto_accept = true
+}
+
+resource "aws_vpc_peering_connection" "peering_vpc3_vpc2" {
+  tags = {
+    Name = "peering_vpc3_vpc2"
+  }
+  vpc_id      = aws_vpc.vpc[2].id
+  peer_vpc_id = aws_vpc.vpc[1].id
+  auto_accept = true
+}
